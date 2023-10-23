@@ -10,8 +10,6 @@ import { executeWebpackDevServerBuilder } from '../webpack-dev-server/webpack-de
 import { readProjectsConfigurationFromProjectGraph } from 'nx/src/project-graph/project-graph';
 import { getExecutorInformation } from 'nx/src/command-line/run/executor-utils';
 import {
-  getDynamicRemotes,
-  getStaticRemotes,
   validateDevRemotes,
 } from '../utilities/module-federation';
 import { existsSync } from 'fs';
@@ -64,6 +62,10 @@ export function executeModuleFederationDevServerBuilder(
           projectsConfigurations:
             readProjectsConfigurationFromProjectGraph(projectGraph),
           nxJsonConfiguration: readNxJson(),
+          workspace: {
+            version: 2,
+            projects: workspaceProjects,
+          },
         }
       )
     )
