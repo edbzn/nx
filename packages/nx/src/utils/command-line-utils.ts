@@ -7,7 +7,10 @@ import { execFileSync } from 'child_process';
 import { ProjectGraph } from '../config/project-graph';
 import { assertValidGitRevision } from './git-revision';
 import { workspaceRoot } from './workspace-root';
-import { readParallelFromArgsAndEnv } from '../command-line/yargs-utils/shared-options';
+import {
+  isAutoParallel,
+  readParallelFromArgsAndEnv,
+} from '../command-line/yargs-utils/shared-options';
 // Type-only, so it erases and cannot deepen the existing cycle with that module.
 import type { OutputStyle } from '../command-line/yargs-utils/shared-options';
 
@@ -23,6 +26,8 @@ export interface NxArgs {
    */
   runner?: string;
   parallel?: number;
+  /** `--parallel=auto`: `parallel` is then the ceiling the run adapts under. */
+  parallelAuto?: boolean;
   untracked?: boolean;
   uncommitted?: boolean;
   all?: boolean;
@@ -219,6 +224,8 @@ export function splitArgsIntoNxArgsAndOverrides(
 
   normalizeNxArgsRunner(nxArgs, nxJson, options);
 
+  // nxArgs is args here: read auto before parallel overwrites it with a number
+  if (isAutoParallel(args)) nxArgs['parallelAuto'] = true;
   nxArgs['parallel'] = readParallelFromArgsAndEnv(args);
 
   return { nxArgs, overrides } as any;

@@ -2651,7 +2651,7 @@ describe('TaskOrchestrator', () => {
           queryOpened,
         } = createCoordinator([other, e2e], ['other:build'], ['e2e:test-hash']);
 
-        const loop = orchestrator.executeCoordinatorLoop(true, 2);
+        const loop = orchestrator.executeCoordinatorLoop(true, () => 2);
         await queryOpened();
         admit('e2e:test');
         orchestrator.processAllScheduledTasks();

@@ -50,6 +50,7 @@ import {
   sweepBatchOutputs,
 } from './cache';
 import { DefaultTasksRunnerOptions } from './default-tasks-runner';
+import { DynamicParallelism, maxAutoParallelism } from './dynamic-parallelism';
 import { ForkedProcessTaskRunner } from './forked-process-task-runner';
 import { isTuiEnabled } from './is-tui-enabled';
 import { TaskMetadata, TaskResult } from './life-cycle';
@@ -351,15 +352,26 @@ export class TaskOrchestrator {
           this.resolveStopPromise = resolve;
         });
 
+    const dynamicParallelism = this.options.parallelAuto
+      ? new DynamicParallelism({ max: discrete }, (limit, reason) => {
+          if (process.env.NX_VERBOSE_LOGGING === 'true') {
+            console.error(`[parallel=auto] ${limit}/${discrete} (${reason})`);
+          }
+          this.releaseThreads();
+        })
+      : undefined;
+    dynamicParallelism?.start(() => this.pendingDiscreteWorkers.size);
+
     const coordinatorLoop = this.executeCoordinatorLoop(
       doNotSkipCache,
-      discrete
+      () => dynamicParallelism?.limit ?? discrete
     );
 
     await Promise.race([
       Promise.all([coordinatorLoop, ...continuousLoops]),
       shutdownPromise,
     ]);
+    dynamicParallelism?.stop();
 
     performance.mark('task-execution:end');
     performance.measure(
@@ -398,7 +410,7 @@ export class TaskOrchestrator {
    */
   private async executeCoordinatorLoop(
     doNotSkipCache: boolean,
-    parallelism: number
+    parallelism: () => number
   ) {
     while (true) {
       if (this.bailed || this.stopRequested) break;
@@ -462,7 +474,7 @@ export class TaskOrchestrator {
       }
 
       // 5. Dispatch cache misses as individual workers
-      while (this.pendingDiscreteWorkers.size < parallelism) {
+      while (this.pendingDiscreteWorkers.size < parallelism()) {
         const task = this.tasksSchedule.nextTask((t) => !t.continuous);
         if (!task) break;
         const groupId = this.closeGroup();
@@ -2887,7 +2899,11 @@ export function getThreadPoolSize(
   options: NxArgs & DefaultTasksRunnerOptions,
   taskGraph: TaskGraph
 ): { discrete: number; continuous: number; total: number } {
-  if (
+  if ((options as any)['parallel'] === 'auto') {
+    // nx.json `parallel: "auto"`; the CLI form is resolved in readParallelFromArgsAndEnv
+    (options as any)['parallel'] = maxAutoParallelism();
+    options.parallelAuto = true;
+  } else if (
     (options as any)['parallel'] === 'false' ||
     (options as any)['parallel'] === false
   ) {

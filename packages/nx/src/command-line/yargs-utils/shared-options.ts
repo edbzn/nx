@@ -1,6 +1,7 @@
 import { readNxJson } from '../../config/nx-json';
 import { isAiAgent } from '../../native';
 import { shouldUseTui } from '../../tasks-runner/is-tui-enabled';
+import { maxAutoParallelism } from '../../tasks-runner/dynamic-parallelism';
 import { NxArgs } from '../../utils/command-line-utils';
 import type { Argv, ParserConfigurationOptions } from 'yargs';
 import { availableParallelism, cpus } from 'node:os';
@@ -80,7 +81,8 @@ export function withTuiOptions<T>(yargs: Argv<T>): Argv<T & TuiOptions> {
 export function withRunOptions<T>(yargs: Argv<T>): Argv<T & RunOptions> {
   return withVerbose(withExcludeOption(yargs))
     .option('parallel', {
-      describe: 'Max number of parallel processes [default is 3].',
+      describe:
+        'Max number of parallel processes [default is 3]. Use "auto" to adjust it during the run from CPU and memory usage.',
       type: 'string',
     })
     .option('maxParallel', {
@@ -476,8 +478,17 @@ export function parseCSV(args: string[] | string): string[] {
   );
 }
 
+export function isAutoParallel(args: { [k: string]: any }): boolean {
+  return (
+    args['parallel'] === 'auto' ||
+    (args['parallel'] === undefined && process.env.NX_PARALLEL === 'auto')
+  );
+}
+
 export function readParallelFromArgsAndEnv(args: { [k: string]: any }) {
-  if (args['parallel'] === 'false' || args['parallel'] === false) {
+  if (isAutoParallel(args)) {
+    return maxAutoParallelism();
+  } else if (args['parallel'] === 'false' || args['parallel'] === false) {
     return 1;
   } else if (
     args['parallel'] === 'true' ||

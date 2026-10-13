@@ -1,5 +1,6 @@
 import type { Mock } from 'vitest';
 import { execFileSync, execSync } from 'child_process';
+import { availableParallelism } from 'node:os';
 import { splitArgsIntoNxArgsAndOverrides } from './command-line-utils';
 import { withEnvironmentVariables as withEnvironment } from '../internal-testing-utils/with-environment';
 
@@ -282,6 +283,17 @@ describe('splitArgs', () => {
         });
       }
     );
+  });
+
+  it('should flag --parallel=auto and cap it at the available cores', () => {
+    const { nxArgs } = splitArgsIntoNxArgsAndOverrides(
+      { __overrides_unparsed__: [], $0: '', parallel: 'auto' },
+      'run-many',
+      {} as any,
+      {} as any
+    );
+    expect(nxArgs.parallelAuto).toBe(true);
+    expect(nxArgs.parallel).toBe(availableParallelism());
   });
 
   describe('--runner environment handling', () => {

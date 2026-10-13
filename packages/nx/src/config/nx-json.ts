@@ -969,9 +969,9 @@ export interface NxJsonConfiguration<T = '*' | string[]> {
   nxCloudEncryptionKey?: string;
 
   /**
-   * Specifies how many tasks can be run in parallel.
+   * Specifies how many tasks can be run in parallel. `"auto"` adjusts it during the run from CPU and memory usage.
    */
-  parallel?: number;
+  parallel?: number | 'auto';
 
   /**
    * Changes the directory used by Nx to store its cache.
